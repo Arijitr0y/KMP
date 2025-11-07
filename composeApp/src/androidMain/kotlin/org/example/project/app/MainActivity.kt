@@ -1,5 +1,6 @@
 package org.example.project.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,11 +12,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import org.example.project.AppUI
 import org.example.project.auth.AuthViewModel
+import org.example.project.auth.handleOAuthDeepLinkIfAny
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AppRoot() }
+        setContent {
+            AppUI(vm = AuthViewModel())
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // intent is non-null here
+        handleOAuthDeepLinkIfAny(intent.data)
     }
 }
 

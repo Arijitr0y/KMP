@@ -106,4 +106,24 @@ class AuthViewModel(
             } finally { _ui.update { it.copy(loading = false) } }
         }
     }
+
+    fun loginWithGoogle() {
+        appScope.launch {
+            _ui.update { it.copy(loading = true) }
+            try {
+                repo.loginWithGoogle()
+                // Flow will update once deep link completes
+            } catch (e: Throwable) {
+                toast(e.message ?: "Google sign-in failed")
+            } finally {
+                _ui.update { it.copy(loading = false) }
+            }
+        }
+    }
+
+    fun logout() {
+        appScope.launch { runCatching { repo.signOut() } }
+    }
+
+
 }
