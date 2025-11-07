@@ -4,112 +4,100 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-//import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AuthScreen(
-    vm: AuthViewModel,
-    modifier: Modifier = Modifier
-) {
-    val state = vm.uiState
-    Surface(modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            when (state) {
-                is AuthUiState.EmailEntry -> EmailStep(
-                    onSubmit = { email -> vm.requestOtp(email) }
+fun AuthScreen(vm: AuthViewModel) {
+    val ui by vm.ui.collectAsState()
+
+    Column(Modifier.padding(24.dp)) {
+        // Tabs
+        TabRow(selectedTabIndex = when (ui.mode) {
+            AuthMode.Login -> 0; AuthMode.Signup, AuthMode.VerifyOtp -> 1; AuthMode.Forgot -> 2
+        }) {
+            Tab(selected = ui.mode == AuthMode.Login,  onClick = { vm.switchMode(AuthMode.Login) },  text = { Text("Login") })
+            Tab(selected = ui.mode == AuthMode.Signup || ui.mode == AuthMode.VerifyOtp,
+                onClick = { vm.switchMode(AuthMode.Signup) }, text = { Text("Sign up") })
+            Tab(selected = ui.mode == AuthMode.Forgot, onClick = { vm.switchMode(AuthMode.Forgot) }, text = { Text("Forgot") })
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        OutlinedTextField(
+            value = ui.email, onValueChange = vm::setEmail,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Email") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true
+        )
+
+        when (ui.mode) {
+            AuthMode.Login -> {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = ui.password, onValueChange = vm::setPassword,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true
                 )
-                is AuthUiState.CodeEntry -> CodeStep(
-                    email = state.email,
-                    onConfirm = { code -> vm.verifyOtp(state.email, code) },
-                    onBack = { vm.requestOtp(state.email) } // simple resend/back
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = vm::login, enabled = !ui.loading) {
+                    Text(if (ui.loading) "Signing in..." else "Login")
+                }
+            }
+
+            AuthMode.Signup -> {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = ui.password, onValueChange = vm::setPassword,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true
                 )
-                is AuthUiState.Authed -> LoggedInStep(onSignOut = vm::signOut)
-                is AuthUiState.Loading -> CircularProgressIndicator()
-                is AuthUiState.Error -> ErrorStep(
-                    message = state.message,
-                    onRetry = { /* go back to email */ }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = ui.confirm, onValueChange = vm::setConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Confirm password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true
                 )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = vm::startSignup, enabled = !ui.loading) {
+                    Text(if (ui.loading) "Sending code..." else "Continue")
+                }
+            }
+
+            AuthMode.VerifyOtp -> {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = ui.code, onValueChange = vm::setCode,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Code from email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = vm::verifyOtpThenSetPassword, enabled = !ui.loading) {
+                    Text(if (ui.loading) "Verifying..." else "Verify & create account")
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { vm.switchMode(AuthMode.Signup) }) { Text("Back") }
+            }
+
+            AuthMode.Forgot -> {
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = vm::sendReset, enabled = !ui.loading) {
+                    Text(if (ui.loading) "Sending..." else "Send reset link")
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun EmailStep(onSubmit: (String) -> Unit) {
-    var email by remember { mutableStateOf("") }
-    Column(
-        Modifier.padding(24.dp).widthIn(max = 420.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Sign in with Email OTP", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = { onSubmit(email.trim()) },
-            enabled = email.contains("@"),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Send Code") }
-    }
-}
-
-@Composable
-private fun CodeStep(email: String, onConfirm: (String) -> Unit, onBack: () -> Unit) {
-    var code by remember { mutableStateOf("") }
-    Column(
-        Modifier.padding(24.dp).widthIn(max = 420.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Enter the code sent to", style = MaterialTheme.typography.titleLarge)
-        Text(email, style = MaterialTheme.typography.bodyLarge) // <- fixed 'typography'
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = code,
-            onValueChange = { code = it },
-            label = { Text("6-digit code") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = { onConfirm(code.trim()) },
-            enabled = code.length >= 6,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Verify") }
-
-        TextButton(onClick = onBack, modifier = Modifier.align(Alignment.End)) {
-            Text("Resend / Change email")
-        }
-    }
-}
-
-@Composable
-private fun LoggedInStep(onSignOut: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("You’re signed in ✅", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onSignOut) { Text("Sign out") }
-    }
-}
-
-@Composable
-private fun ErrorStep(message: String, onRetry: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Error", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
-        Spacer(Modifier.height(8.dp))
-        Text(message, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry) { Text("Try again") }
     }
 }
