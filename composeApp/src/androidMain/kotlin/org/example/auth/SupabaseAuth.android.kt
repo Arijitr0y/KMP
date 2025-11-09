@@ -50,6 +50,7 @@ actual object SupabasePlatform {
             httpEngine = OkHttp.create()
             install(Auth) {
                 // ✅ Keep the user signed in across app restarts
+
                 sessionManager = SettingsSessionManager(settings)
             }
         }

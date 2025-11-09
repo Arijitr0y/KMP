@@ -45,9 +45,7 @@ fun AuthScreen(vm: AuthViewModel) {
                     singleLine = true
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = vm::login, enabled = !ui.loading) {
-                    Text(if (ui.loading) "Signing in..." else "Login")
-                }
+
                 // Example: show under the action button in Login block
                 Button(onClick = vm::login, enabled = !ui.loading) {
                     Text(if (ui.loading) "Signing in..." else "Login")
@@ -87,9 +85,6 @@ fun AuthScreen(vm: AuthViewModel) {
                     Text(if (ui.loading) "Sending code..." else "Continue")
                 }
                 // Example: show under the action button in Login block
-                Button(onClick = vm::login, enabled = !ui.loading) {
-                    Text(if (ui.loading) "Signing in..." else "Login")
-                }
                 Spacer(Modifier.height(12.dp))
                 OutlinedButton(
                     onClick = vm::loginWithGoogle,

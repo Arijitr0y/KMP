@@ -48,7 +48,7 @@ class AuthRepository(
     suspend fun loginWithGoogle() {
         auth.signInWith(
             provider = Google,
-            redirectUrl = SupabasePlatform.oauthRedirectUri
+            redirectUrl = "org.example.project://auth-callback"
         )
     }
 
